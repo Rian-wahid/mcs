@@ -15,7 +15,9 @@ The MCS stream cipher is built upon a custom permutation-based pseudorandom numb
 The cipher is initialized using `mcs_cipher_init`, which takes a 32-byte (256-bit) key and a 32-byte (256-bit) nonce. The key and nonce are used to seed the initial 256-bit internal state (`a` through `p`) and to derive a separate "anti-inverse" key (`ka` through `kp`). The initialization process involves several applications of custom `mcs_confuse` and `mcs_anti_invers` functions to thoroughly mix the input entropy into the state.
 
 ### 2.3 Core Operations
-The primary operation for data encryption/decryption is `mcs_cipher_xor_block`. This function operates on fixed 128-byte blocks of data. For each block, it incorporates a block counter into the internal state, then subjects the state to multiple rounds of `mcs_confuse` and `mcs_mix` functions. These functions perform bitwise XORs, cyclic rotations, and additions on 64-bit words to ensure rapid diffusion and confusion. After the state transformation, the "anti-inverse" key components are added to the state. The resulting 128-byte transformed state is then XORed with the input data block to produce the output.
+The library provides two primary functions for data encryption/decryption:
+- **`mcs_cipher_xor_block`**: This function operates on fixed 128-byte blocks of data. For each block, it incorporates a block counter into the internal state, then subjects the state to multiple rounds of `mcs_confuse` and `mcs_mix` functions. These functions perform bitwise XORs, cyclic rotations, and additions on 64-bit words to ensure rapid diffusion and confusion. After the state transformation, the "anti-inverse" key components are added to the state. The resulting 128-byte transformed state is then XORed with the input data block to produce the output.
+- **`mcs_cipher_xor_stream`**: This function allows for encryption/decryption of data streams of arbitrary length. It internally manages the processing of full 128-byte blocks using `mcs_cipher_xor_block` and buffers any partial blocks to ensure continuous keystream application across calls.
 
 ### 2.4 Internal Functions
 - **`mcs_confuse`**: A mixing function that takes four 64-bit words and applies a series of XORs, rotations, and additions to them.
@@ -23,8 +25,9 @@ The primary operation for data encryption/decryption is `mcs_cipher_xor_block`. 
 - **`mcs_anti_invers`**: A specialized function that applies a non-invertible transformation to four 64-bit words, used during initialization and potentially to enhance resistance against certain attacks.
 
 ### 2.5 Limitations and Considerations
-- **Endianness**: The current implementation assumes a little-endian system for handling multi-byte values (e.g., `uint64_t` from `uint8_t*` arrays). Portability to big-endian systems would require specific adaptations (marked with `TODO` in the source).
-- **Variable-Length Input**: The `mcs_cipher_xor_block` function is designed for fixed 128-byte blocks. While a `mcs_cipher_xor_stream` function is prototyped, its implementation for flexible-length input is currently a `TODO`.
+- **Endianness**: The implementation now includes platform-specific adaptations for endianness, supporting little-endian systems (x86/x64 Windows, Linux, macOS, FreeBSD). This mitigates the previous assumption of a purely little-endian system for handling multi-byte values (e.g., `uint64_t` from `uint8_t*` arrays). Systems where endianness cannot be determined will default to little-endian.
+- **Flexible-Length Input**: The `mcs_cipher_xor_stream` function is now fully implemented, allowing for encryption/decryption of data streams of arbitrary length. It handles buffering of partial blocks internally.
+- **Counter Overflow**: The `mcs_cipher_xor_block` function includes a mechanism to detect and assert on counter overflow, ensuring the block counter does not wrap around during extended use.
 - **Cryptographic Strength**: As a custom cipher, its cryptographic strength relies heavily on the design of `mcs_confuse`, `mcs_mix`, and `mcs_anti_invers`. Rigorous cryptanalysis would be required to ascertain its security against known attacks.
 
 ## 3. Message Authentication Code (MCS-MAC)
@@ -36,7 +39,7 @@ The MCS-MAC algorithm provides message integrity and authenticity. It processes 
 The MAC algorithm is initialized with `mcs_mac_init`, taking a 32-byte (256-bit) key. The key is divided into eight 32-bit words (`k1` through `k8`), which are used to seed the initial 128-bit internal state (`a`, `b`, `c`, `d`) and for mixing operations during processing.
 
 ### 3.3 Core Operations
-- **`mcs_mac_write`**: This function is intended to process input data of arbitrary length. It updates an internal 128-bit counter that tracks the total length of processed data. *Note: As of the current implementation, handling of flexible-length input and buffering for partial 16-byte blocks is noted as a `TODO` for complete functionality.*
+- **`mcs_mac_write`**: This function processes input data of arbitrary length. It updates an internal 128-bit counter that tracks the total length of processed data and handles buffering for partial 16-byte blocks.
 - **`mcs_mac_calc`**: Processes a 16-byte block of input data. It XORs the input with the current internal state, applies the `mcs_mac_mix` function, XORs with specific key parts (`k1` to `k4`), and applies `mcs_mac_mix` again to update the state.
 - **`mcs_mac_digest`**: Finalizes the MAC calculation. It first calls `mcs_mac_calc_final`, which processes any remaining buffered data and incorporates the total message length and additional key material into the final state. The resulting 16-byte MAC tag is then outputted.
 - **`mcs_mac_verify`**: Compares a newly computed MAC tag with a provided reference tag. The comparison is performed in a constant-time manner to mitigate timing attacks.
@@ -45,8 +48,8 @@ The MAC algorithm is initialized with `mcs_mac_init`, taking a 32-byte (256-bit)
 - **`mcs_mac_mix`**: A mixing function for four 32-bit words, applying XORs, rotations, and additions to ensure state diffusion.
 
 ### 3.5 Limitations and Considerations
-- **Endianness**: Similar to the cipher, the MAC implementation assumes a little-endian system.
-- **Flexible-Length Input Handling**: The `mcs_mac_write` function's current implementation requires further development to fully support arbitrary input lengths and proper buffering of partial blocks (marked with `TODO` in the source).
+- **Endianness**: The implementation now includes platform-specific adaptations for endianness, supporting little-endian systems (x86/x64 Windows, Linux, macOS, FreeBSD) for handling multi-byte values. Systems where endianness cannot be determined will default to little-endian.
+- **Flexible-Length Input Handling**: The `mcs_mac_write` function now fully supports arbitrary input lengths, correctly buffering partial blocks and updating internal length counters.
 - **Cryptographic Strength**: The security of MCS-MAC depends on the `mcs_mac_mix` function and the key integration. It requires formal security analysis to validate its robustness.
 
 ## 4. Conclusion
