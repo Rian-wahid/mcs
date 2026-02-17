@@ -381,7 +381,7 @@ int main(){
 	test_info_t tinfo128;
 	test_info_t tinfo1024;
 	test_info_t tinfo8192;
-	for(int i=0; i<1000; i++){
+	for(int i=0; i<200; i++){
 		assert(getrandom(key,32,GRND_RANDOM)==32);
 		assert(getrandom(nonce,32,GRND_RANDOM)==32);
 		

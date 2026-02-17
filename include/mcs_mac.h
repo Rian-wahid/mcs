@@ -28,6 +28,28 @@ SOFTWARE.
 #include<stdint.h>
 #include<string.h>
 
+// Endianness detection and byte swap
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
+#include <endian.h>
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define HTOLE32(x) htole32(x)
+#define LETOH32(x) le32toh(x)
+#else
+#define HTOLE32(x) (x)
+#define LETOH32(x) (x)
+#endif
+#elif defined(_WIN32)
+#include <intrin.h> // For _byteswap_ulong
+// Windows on x86/x64 is little-endian, so no swap for HTOLE and LETOH
+#define HTOLE32(x) (x)
+#define LETOH32(x) (x)
+#else
+// Generic fallback if endianness cannot be determined or intrinsics are not available
+// Assumes little-endian by default for simplicity, but a proper check might be needed
+#warning "Could not determine system endianness. Assuming little-endian."
+#define HTOLE32(x) (x)
+#define LETOH32(x) (x)
+#endif
 
 typedef struct{
 

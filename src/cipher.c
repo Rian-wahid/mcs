@@ -28,6 +28,8 @@ SOFTWARE.
 
 #include<string.h>
 #include<mcs_cipher.h>
+#include<assert.h>
+#include<stdio.h>
 
 #define CONST_A 0xbd5bc326d7b42f7bLU
 #define CONST_B 0x7a73cb2b5b7c27c0LU
@@ -181,8 +183,6 @@ void mcs_cipher_init(mcs_cipher_t *cipher,uint8_t *key,uint8_t *nonce){
 	cipher->buf_offset=0;
 	cipher->buf_len=0;
 
-	// TODO: make it more portable. can handle different endian system
-	// current endian is little endian.
 	uint64_t *ik=(uint64_t *)key;
 	uint64_t *in=(uint64_t *)nonce;
 	/* a b c d
@@ -197,22 +197,22 @@ void mcs_cipher_init(mcs_cipher_t *cipher,uint8_t *key,uint8_t *nonce){
 	uint64_t c=CONST_C;
 	uint64_t d=CONST_D;
 
-	uint64_t e=ik[0];
-	uint64_t f=ik[1];
-	uint64_t g=ik[2];
-	uint64_t h=ik[3];
+	uint64_t e=HTOLE64(ik[0]);
+	uint64_t f=HTOLE64(ik[1]);
+	uint64_t g=HTOLE64(ik[2]);
+	uint64_t h=HTOLE64(ik[3]);
 	
-	uint64_t i=ik[0];
-	uint64_t j=ik[1];
-	uint64_t k=ik[2];
-	uint64_t l=ik[3];
+	uint64_t i=HTOLE64(ik[0]);
+	uint64_t j=HTOLE64(ik[1]);
+	uint64_t k=HTOLE64(ik[2]);
+	uint64_t l=HTOLE64(ik[3]);
 
 	mcs_confuse(&i,&j,&k,&l);
 	
-	uint64_t m=in[0];
-	uint64_t n=in[1];
-	uint64_t o=in[2];
-	uint64_t p=in[3];
+	uint64_t m=HTOLE64(in[0]);
+	uint64_t n=HTOLE64(in[1]);
+	uint64_t o=HTOLE64(in[2]);
+	uint64_t p=HTOLE64(in[3]);
 
 	mcs_confuse(&a,&e,&i,&m);
 	mcs_confuse(&b,&f,&j,&n);
@@ -253,22 +253,22 @@ void mcs_cipher_init(mcs_cipher_t *cipher,uint8_t *key,uint8_t *nonce){
 	c=CONST_C;
 	d=CONST_D;
 
-	e=~ik[0];
-	f=~ik[1];
-	g=~ik[2];
-	h=~ik[3];
+	e=HTOLE64(~ik[0]);
+	f=HTOLE64(~ik[1]);
+	g=HTOLE64(~ik[2]);
+	h=HTOLE64(~ik[3]);
 	
-	i=~ik[0];
-	j=~ik[1];
-	k=~ik[2];
-	l=~ik[3];
+	i=HTOLE64(~ik[0]);
+	j=HTOLE64(~ik[1]);
+	k=HTOLE64(~ik[2]);
+	l=HTOLE64(~ik[3]);
 
 	mcs_confuse(&i,&j,&k,&l);
 	
-	m=~in[0];
-	n=~in[1];
-	o=~in[2];
-	p=~in[3];
+	m=HTOLE64(~in[0]);
+	n=HTOLE64(~in[1]);
+	o=HTOLE64(~in[2]);
+	p=HTOLE64(~in[3]);
 
 	mcs_confuse(&a,&e,&i,&m);
 	mcs_confuse(&b,&f,&j,&n);
@@ -320,9 +320,12 @@ void mcs_cipher_xor_block(mcs_cipher_t *cipher,uint8_t *dst,uint8_t *src,uint64_
 
 
 	// add block number 'nb' (counter) to m
-	// TODO: it must be error if
-	// cipher->m-1==cipher->m+nb
 	uint64_t m=cipher->m+nb;
+	// Check for counter overflow
+	if (nb > 0 && m < cipher->m) {
+		fprintf(stderr, "MCS Cipher Counter Overflow Detected!\n");
+		assert(0);
+	}
 	uint64_t n=cipher->n;
 	uint64_t o=cipher->o;
 	uint64_t p=cipher->p;
@@ -393,28 +396,70 @@ void mcs_cipher_xor_block(mcs_cipher_t *cipher,uint8_t *dst,uint8_t *src,uint64_
 	p+=cipher->kp;
 
 
-	// TODO: make it more portable can handle different endian system.
-	// current endian is little endian
 	uint64_t *cpt=(uint64_t *)dst;
 	uint64_t *plt=(uint64_t *)src;
-	cpt[0]=plt[0]^a;
-	cpt[1]=plt[1]^b;
-	cpt[2]=plt[2]^c;
-	cpt[3]=plt[3]^d;
+	cpt[0]=LETOH64(HTOLE64(plt[0])^a);
+	cpt[1]=LETOH64(HTOLE64(plt[1])^b);
+	cpt[2]=LETOH64(HTOLE64(plt[2])^c);
+	cpt[3]=LETOH64(HTOLE64(plt[3])^d);
 
-	cpt[4]=plt[4]^e;
-	cpt[5]=plt[5]^f;
-	cpt[6]=plt[6]^g;
-	cpt[7]=plt[7]^h;
+	cpt[4]=LETOH64(HTOLE64(plt[4])^e);
+	cpt[5]=LETOH64(HTOLE64(plt[5])^f);
+	cpt[6]=LETOH64(HTOLE64(plt[6])^g);
+	cpt[7]=LETOH64(HTOLE64(plt[7])^h);
 
-	cpt[8]=plt[8]^i;
-	cpt[9]=plt[9]^j;
-	cpt[10]=plt[10]^k;
-	cpt[11]=plt[11]^l;
+	cpt[8]=LETOH64(HTOLE64(plt[8])^i);
+	cpt[9]=LETOH64(HTOLE64(plt[9])^j);
+	cpt[10]=LETOH64(HTOLE64(plt[10])^k);
+	cpt[11]=LETOH64(HTOLE64(plt[11])^l);
 
-	cpt[12]=plt[12]^m;
-	cpt[13]=plt[13]^n;
-	cpt[14]=plt[14]^o;
-	cpt[15]=plt[15]^p;
+	cpt[12]=LETOH64(HTOLE64(plt[12])^m);
+	cpt[13]=LETOH64(HTOLE64(plt[13])^n);
+	cpt[14]=LETOH64(HTOLE64(plt[14])^o);
+	cpt[15]=LETOH64(HTOLE64(plt[15])^p);
 }
 
+void mcs_cipher_xor_stream(mcs_cipher_t *cipher,uint8_t *dst,const uint8_t *src,uint64_t len){
+    uint8_t keystream_block[128];
+    uint8_t zero_block[128] = {0}; // Dummy src for generating pure keystream
+    size_t block_size = 128;
+
+    // Use buffered keystream first
+    if (cipher->buf_len > 0) {
+        size_t bytes_from_buf = (len < cipher->buf_len) ? len : cipher->buf_len;
+        for (size_t i = 0; i < bytes_from_buf; ++i) {
+            dst[i] = src[i] ^ cipher->buf[cipher->buf_offset + i];
+        }
+        cipher->buf_offset += bytes_from_buf;
+        cipher->buf_len -= bytes_from_buf;
+        dst += bytes_from_buf;
+        src += bytes_from_buf;
+        len -= bytes_from_buf;
+    }
+
+    // Process full blocks
+    while (len >= block_size) {
+        mcs_cipher_xor_block(cipher, dst, (uint8_t*)src, cipher->block_count);
+        cipher->block_count++;
+        dst += block_size;
+        src += block_size;
+        len -= block_size;
+    }
+
+    // Handle remaining partial block
+    if (len > 0) {
+        // Generate a new full keystream block into keystream_block
+        mcs_cipher_xor_block(cipher, keystream_block, zero_block, cipher->block_count);
+        cipher->block_count++;
+
+        // XOR with remaining src bytes and write to dst
+        for (size_t i = 0; i < len; ++i) {
+            dst[i] = src[i] ^ keystream_block[i];
+        }
+        
+        // Store the unused portion of the keystream in cipher->buf
+        memcpy(cipher->buf, keystream_block + len, block_size - len);
+        cipher->buf_offset = 0;
+        cipher->buf_len = block_size - len;
+    }
+}

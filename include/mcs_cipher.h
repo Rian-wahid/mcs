@@ -27,7 +27,30 @@ SOFTWARE.
 
 
 #include<stdint.h>
+#include<string.h> // For memcpy, memset (needed by .c files but convenient to include here)
 
+// Endianness detection and byte swap for 64-bit integers
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
+#include <endian.h>
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define HTOLE64(x) htole64(x)
+#define LETOH64(x) le64toh(x)
+#else
+#define HTOLE64(x) (x)
+#define LETOH64(x) (x)
+#endif
+#elif defined(_WIN32)
+#include <intrin.h> // For _byteswap_uint64
+// Windows on x86/x64 is little-endian, so no swap for HTOLE and LETOH
+#define HTOLE64(x) (x)
+#define LETOH64(x) (x)
+#else
+// Generic fallback if endianness cannot be determined or intrinsics are not available
+// Assumes little-endian by default for simplicity, but a proper check might be needed
+#warning "Could not determine system endianness. Assuming little-endian."
+#define HTOLE64(x) (x)
+#define LETOH64(x) (x)
+#endif
 
 typedef struct{
 
@@ -70,5 +93,4 @@ void mcs_cipher_init(mcs_cipher_t *cipher,uint8_t *key,uint8_t *nonce);
 void mcs_cipher_xor_block(mcs_cipher_t *cipher,uint8_t *dst,uint8_t *src,uint64_t nb);
 
 // this function generate key stream and xor it to flexible length input
-// TODO: implement this function
-//void mcs_cipher_xor_stream(mcs_cipher_t *cipher,uint8_t *dst,uint8_t *src);
+void mcs_cipher_xor_stream(mcs_cipher_t *cipher,uint8_t *dst,const uint8_t *src,uint64_t len);

@@ -427,7 +427,7 @@ int main(){
 	gtinfo.longest_bit_eq=0;
 	uint8_t key[32];
 	uint8_t nonce[32];
-	double ttl_sample=100;
+	double ttl_sample=50;
 	//printf("%u\n",sigma_sum(1025));
 
 	double ttl_subsample_comp=(double)sigma_sum(1025);

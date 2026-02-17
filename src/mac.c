@@ -28,18 +28,16 @@ SOFTWARE.
 
 void mcs_mac_init(mcs_mac_t *mac,const uint8_t key[32]){
 
-	// TODO: make it can handle different endian system.
-	// current endian is little endian
 	uint32_t *ik=(uint32_t *)&key[0];
-	mac->k1=ik[0];
-	mac->k2=ik[1];
-	mac->k3=ik[2];
-	mac->k4=ik[3];
+	mac->k1=HTOLE32(ik[0]);
+	mac->k2=HTOLE32(ik[1]);
+	mac->k3=HTOLE32(ik[2]);
+	mac->k4=HTOLE32(ik[3]);
 
-	mac->k5=ik[4];
-	mac->k6=ik[5];
-	mac->k7=ik[6];
-	mac->k8=ik[7];
+	mac->k5=HTOLE32(ik[4]);
+	mac->k6=HTOLE32(ik[5]);
+	mac->k7=HTOLE32(ik[6]);
+	mac->k8=HTOLE32(ik[7]);
 	mac->a=mac->k5;
 	mac->b=mac->k6;
 	mac->c=mac->k7;
@@ -90,13 +88,11 @@ void mcs_mac_mix(uint32_t *ia,uint32_t *ib,uint32_t *ic,uint32_t *id){
 
 void mcs_mac_calc(mcs_mac_t *mac,const uint8_t input[16]){
 
-	// TODO: make it can handle different endian system.
-	// current endian is little endian
 	uint32_t *in=(uint32_t *)&input[0];
-	uint32_t a=in[0];
-	uint32_t b=in[1];
-	uint32_t c=in[2];
-	uint32_t d=in[3];
+	uint32_t a=HTOLE32(in[0]);
+	uint32_t b=HTOLE32(in[1]);
+	uint32_t c=HTOLE32(in[2]);
+	uint32_t d=HTOLE32(in[3]);
 
 	a^=mac->a;
 	b^=mac->b;
@@ -120,10 +116,35 @@ void mcs_mac_write(mcs_mac_t *mac,const uint8_t *input,uint64_t len){
 	mac->counter_lo+=len;
 	uint64_t cr=(mac->counter_lo<len)?1:0;
 	mac->counter_hi+=cr;
-	// TODO: handle flexible length input
-	// if buf in mac is not empty
-	// that must be calculated first
-	// if last input is not 16 bytes. it must stored in buffer and calculate later
+
+	// Handle existing buffered data
+	if (mac->buf_len > 0) {
+		size_t remaining_buf_space = sizeof(mac->buf) - mac->buf_len;
+		if (len >= remaining_buf_space) {
+			memcpy(mac->buf + mac->buf_len, input, remaining_buf_space);
+			mcs_mac_calc(mac, mac->buf);
+			input += remaining_buf_space;
+			len -= remaining_buf_space;
+			mac->buf_len = 0;
+		} else {
+			memcpy(mac->buf + mac->buf_len, input, len);
+			mac->buf_len += len;
+			return;
+		}
+	}
+
+	// Process full 16-byte blocks from the remaining input
+	while (len >= sizeof(mac->buf)) {
+		mcs_mac_calc(mac, input);
+		input += sizeof(mac->buf);
+		len -= sizeof(mac->buf);
+	}
+
+	// Buffer any remaining partial input
+	if (len > 0) {
+		memcpy(mac->buf, input, len);
+		mac->buf_len = len;
+	}
 }
 
 void mcs_mac_calc_final(mcs_mac_t *mac){
@@ -146,13 +167,11 @@ void mcs_mac_calc_final(mcs_mac_t *mac){
 void mcs_mac_digest(mcs_mac_t *mac,uint8_t dst[16]){
 
 	mcs_mac_calc_final(mac);
-	// TODO: make it can handle different endian system.
-	// current endian is little endian
 	uint32_t *out=(uint32_t *)&dst[0];
-	out[0]=mac->a;
-	out[1]=mac->b;
-	out[2]=mac->c;
-	out[3]=mac->d;
+	out[0]=LETOH32(mac->a);
+	out[1]=LETOH32(mac->b);
+	out[2]=LETOH32(mac->c);
+	out[3]=LETOH32(mac->d);
 }
 
 int mcs_mac_verify(mcs_mac_t *mac,const uint8_t tag[16]){
