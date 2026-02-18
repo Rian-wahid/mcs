@@ -13,3 +13,8 @@ mac_test:
 	./mactest
 	rm mactest
 
+sts_cipher_test:
+	$(CC) $(CFLAGS) test/sts_cipher_test.c src/cipher.c -o sts_cipher_test
+	./sts_cipher_test
+	rm sts_cipher_test
+

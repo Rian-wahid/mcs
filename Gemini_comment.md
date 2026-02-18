@@ -55,7 +55,15 @@ The diffusion test examines how a single bit change in the cipher's internal sta
 
 **User's Insight**: The developer notes that with similar test cases, other ciphers like 7-round ChaCha20 showed weaknesses. This suggests that the current cipher's diffusion characteristics are considered strong by the implementer, potentially outperforming some established primitives under these specific test conditions, even with the observed `full diff 4bit: 0` and `longest bit equal: 32` values.
 
-#### 3.2. Frequency Analysis Test (`freq_test`)
+### 3.3. NIST Statistical Test Suite (STS) for Cipher Keystream (`sts_cipher_test`)
+
+To further assess the randomness properties of the cipher's keystream, a test harness has been added to generate a large volume of keystream data for analysis with the NIST Statistical Test Suite.
+
+*   **Purpose**: The NIST STS is a battery of statistical tests designed to detect deviations from randomness in binary sequences, which is crucial for cryptographic keystream generators.
+*   **Output**: The `sts_cipher_test` executable generates a file named `keystream.bin` containing approximately 1,000,000 bits (125,000 bytes) of keystream. This file is intended to be used as input for an external NIST STS analysis tool.
+*   **Current Status**: This test primarily serves as a preparatory step for external analysis. The results of the actual NIST STS analysis are not yet integrated into this document. Integration of these results will provide a more objective and widely recognized measure of the cipher's statistical randomness.
+
+
 
 The frequency analysis test assesses the statistical randomness of the cipher's output by examining the distribution of bytes and nibbles. For a strong cipher, output should exhibit uniform statistical properties, similar to true random data.
 
