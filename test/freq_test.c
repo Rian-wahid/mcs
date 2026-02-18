@@ -162,7 +162,7 @@ void freq_test(
 			if(fq>tinfo128->max_fqb8){
 				tinfo128->max_fqb8=fq;
 			}
-			if(fq>=0.0078125){
+			if(fq>=0.015625){
 				tinfo128->exceed_limit_fqb8+=1;
 			}
 
